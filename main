@@ -1,99 +1,119 @@
-local WindUI = loadstring(game:HttpGet("https://github.com/Footagesus/WindUI/releases/latest/download/main.lua"))()
 local Players    = game:GetService("Players")
 local WS         = game:GetService("Workspace")
 local RS         = game:GetService("ReplicatedStorage")
 local UIS        = game:GetService("UserInputService")
 local RunService = game:GetService("RunService")
+local TS         = game:GetService("TweenService")
 local LP         = Players.LocalPlayer
+local Mouse      = LP:GetMouse()
 
--- ─── STATE ────────────────────────────────────────────
+local VALID_KEY  = "ahsdguajs-aseio37u"
+local DISCORD    = "https://discord.gg/ZN4jtyPNHG"
+
 local S = {
-    -- Farm
-    AutoBreak = false, AutoCollect = false, AutoSell = false,
-    BreakDelay = 0.2, CollectDelay = 0.2, SellDelay = 5,
-    AutoDig = false, AutoFarm = false, FarmRadius = 60,
-    AutoRebirth = false, RebirthThreshold = 1000000,
-    -- Claims
-    AutoHatch = false, AutoClaim = false, AutoPlace = false,
-    AutoStore = false, AutoBuyEgg = false, EggLimit = 10,
-    AutoDaily = false, AutoQuest = false, AutoEvent = false,
-    AutoCollectReward = false,
-    -- Movement
-    SpeedEnabled = false, WalkSpeed = 16,
-    FlyEnabled = false, FlySpeed = 3,
-    NoclipEnabled = false,
-    InfiniteJump = false,
-    HighJump = false, JumpPower = 100,
-    AntiVoid = false, AntiVoidY = -100,
-    LowGravity = false, GravityVal = 50,
-    AutoSprint = false, SprintSpeed = 28,
-    AntiSlip = false,
-    -- ESP
-    ESPEgg = false, ESPAnimal = false, ESPPlayer = false,
-    ESPDistance = false, ESPHealth = false, ESPTracers = false,
-    TracerOrigin = "Bottom",
-    -- Players
-    TargetPlayer = "",
-    OrbitEnabled = false, OrbitRadius = 10, OrbitSpeed = 1,
-    -- Misc
-    AntiAFK = true, Paused = false,
-    Fullbright = false,
-    ChatSpam = false, ChatMsg = "discord.gg/ZN4jtyPNHG", ChatDelay = 10,
-    ServerHop = false, ServerHopMin = 5,
-    AutoClick = false, AutoClickDelay = 0.05,
-    -- Info
-    InfoPanel = false, ShowFPS = false, ShowPing = false,
-    ShowCash = false, ShowClock = false,
+    AutoBreak=false, AutoCollect=false, AutoSell=false,
+    BreakDelay=0.15, CollectDelay=0.15, SellDelay=5,
+    AutoDig=false, AutoFarm=false, FarmRadius=60,
+    AutoRebirth=false, RebirthThreshold=1000000,
+    AutoHatch=false, AutoClaim=false, AutoPlace=false,
+    AutoStore=false, AutoBuyEgg=false, EggLimit=10,
+    AutoDaily=false, AutoQuest=false, AutoEvent=false,
+    AutoCollectReward=false,
+    SpeedEnabled=false, WalkSpeed=16,
+    FlyEnabled=false, FlySpeed=3,
+    NoclipEnabled=false,
+    InfiniteJump=false,
+    HighJump=false, JumpPower=120,
+    AntiVoid=false, AntiVoidY=-100,
+    LowGravity=false, GravityVal=50,
+    AutoSprint=false, SprintSpeed=28,
+    AntiSlip=false,
+    ESPEgg=false, ESPAnimal=false, ESPPlayer=false,
+    ESPDistance=false, ESPHealth=false, ESPTracers=false,
+    TracerOrigin="Bottom",
+    TargetPlayer="",
+    OrbitEnabled=false, OrbitRadius=10, OrbitSpeed=1,
+    AntiAFK=true, Paused=false,
+    Fullbright=false,
+    ChatSpam=false, ChatMsg="discord.gg/ZN4jtyPNHG", ChatDelay=10,
+    ServerHop=false, ServerHopMin=5,
+    AutoClick=false, AutoClickDelay=0.05,
+    InfoPanel=false, ShowFPS=false, ShowPing=false,
+    ShowCash=false, ShowClock=false,
+    TPTarget="", LoopTP=false, LoopTPName="",
+    AutoUpgradePick=false, AutoUpgradeTrail=false,
+    AutoUpgradePlot=false, AutoUpgradeTread=false,
+    AutoEquip=false, AutoTreadmill=false,
+    CashReserve=0, MaxPrice=0, SessionBudget=0,
+    FlingEnabled=false,
+    AutoRetry=false,
+    ShowNameESP=false,
 }
 
-local sessionBought = 0
+local sessionSpent = 0
 local lastFPS, frameCount, lastFPSTime = 0, 0, tick()
 local pingVal = 0
+local unlocked = false
 
--- ─── HELPERS ──────────────────────────────────────────
-local function root()
-    local c = LP.Character
-    return c and c:FindFirstChild("HumanoidRootPart")
-end
-local function hum()
-    local c = LP.Character
-    return c and c:FindFirstChildOfClass("Humanoid")
-end
+local function root() local c=LP.Character; return c and c:FindFirstChild("HumanoidRootPart") end
+local function hum()  local c=LP.Character; return c and c:FindFirstChildOfClass("Humanoid") end
 local function cash()
-    for _, f in ipairs({ LP:FindFirstChild("leaderstats"), LP:FindFirstChild("Stats"), LP:FindFirstChild("Data") }) do
-        if f then
-            for _, v in ipairs(f:GetChildren()) do
-                local n = v.Name:lower()
-                if n:find("cash") or n:find("coin") or n:find("money") or n:find("gem") then
-                    return tonumber(v.Value) or 0
-                end
-            end
-        end
+    for _,f in ipairs({LP:FindFirstChild("leaderstats"),LP:FindFirstChild("Stats"),LP:FindFirstChild("Data")}) do
+        if f then for _,v in ipairs(f:GetChildren()) do
+            local n=v.Name:lower()
+            if n:find("cash") or n:find("coin") or n:find("money") or n:find("gem") then return tonumber(v.Value) or 0 end
+        end end
     end
     return 0
 end
-local function fireRemote(name, ...)
+local function fireRemote(name)
     local r = RS:FindFirstChild(name, true)
     if r then
-        if r:IsA("RemoteEvent") then pcall(function() r:FireServer(...) end) end
-        if r:IsA("RemoteFunction") then pcall(function() r:InvokeServer(...) end) end
+        if r:IsA("RemoteEvent") then pcall(function() r:FireServer() end) end
+        if r:IsA("RemoteFunction") then pcall(function() r:InvokeServer() end) end
     end
 end
-local function tryProximity(obj)
+local function tryPP(obj)
+    if not obj then return end
     local pp = obj:FindFirstChildOfClass("ProximityPrompt")
     if pp and fireproximityprompt then pcall(fireproximityprompt, pp) end
-    local cd = obj:FindFirstChild("ClickDetector")
+    local cd = obj:FindFirstChild("ClickDetector") or (obj:IsA("ClickDetector") and obj)
     if cd and fireclickdetector then pcall(fireclickdetector, cd) end
 end
-local function tpTo(pos, offset)
+local function tpTo(pos, off)
     local r = root()
-    offset = offset or Vector3.new(0, 4, 0)
-    if r and pos then r.CFrame = CFrame.new(pos + offset) end
+    if r and pos then r.CFrame = CFrame.new(pos + (off or Vector3.new(0,4,0))) end
+end
+local function budgetOK(price)
+    if S.CashReserve > 0 and cash() - price < S.CashReserve then return false end
+    if S.MaxPrice > 0 and price > S.MaxPrice then return false end
+    if S.SessionBudget > 0 and sessionSpent + price > S.SessionBudget then return false end
+    return true
 end
 
--- ─── FARM LOOPS ───────────────────────────────────────
+local function findAndFire(keywords)
+    for _, obj in ipairs(WS:GetDescendants()) do
+        local n = obj.Name:lower()
+        for _, kw in ipairs(keywords) do
+            if n:find(kw) then tryPP(obj) break end
+        end
+    end
+end
 
--- Auto Break
+local function getAllRemotes()
+    local out = {}
+    for _, v in ipairs(RS:GetDescendants()) do
+        if v:IsA("RemoteEvent") or v:IsA("RemoteFunction") then
+            table.insert(out, v)
+        end
+    end
+    return out
+end
+
+local function spamRemote(names)
+    for _, name in ipairs(names) do fireRemote(name) end
+end
+
 task.spawn(function()
     while true do
         task.wait(S.BreakDelay)
@@ -101,22 +121,22 @@ task.spawn(function()
             for _, obj in ipairs(WS:GetDescendants()) do
                 if not S.AutoBreak or S.Paused then break end
                 local n = obj.Name:lower()
-                if n:find("egg") or n:find("ore") or n:find("rock") or n:find("crystal") or n:find("gem") or n:find("mine") then
+                if n:find("egg") or n:find("ore") or n:find("rock") or n:find("crystal") or n:find("gem") or n:find("mine") or n:find("node") then
                     local pos
                     if obj:IsA("BasePart") then pos = obj.Position
                     elseif obj:IsA("Model") and obj.PrimaryPart then pos = obj.PrimaryPart.Position end
                     if pos then
-                        tpTo(pos, Vector3.new(0, 3, 3))
-                        tryProximity(obj)
+                        tpTo(pos, Vector3.new(0,3,2))
+                        tryPP(obj)
+                        for _, d in ipairs(obj:GetDescendants()) do tryPP(d) end
                     end
                 end
-                task.wait(0.05)
+                task.wait(0.03)
             end
         end
     end
 end)
 
--- Auto Collect
 task.spawn(function()
     while true do
         task.wait(S.CollectDelay)
@@ -124,65 +144,68 @@ task.spawn(function()
             for _, obj in ipairs(WS:GetDescendants()) do
                 if not S.AutoCollect or S.Paused then break end
                 local n = obj.Name:lower()
-                if n:find("drop") or n:find("animal") or n:find("pet") or n:find("bag") or n:find("collect") then
+                if n:find("drop") or n:find("animal") or n:find("pet") or n:find("bag") or n:find("collect") or n:find("pickup") or n:find("item") then
                     local pos
                     if obj:IsA("BasePart") then pos = obj.Position
                     elseif obj:IsA("Model") and obj.PrimaryPart then pos = obj.PrimaryPart.Position end
                     if pos then
-                        tpTo(pos, Vector3.new(0, 3, 0))
-                        tryProximity(obj)
+                        tpTo(pos, Vector3.new(0,2,0))
+                        tryPP(obj)
+                        for _, d in ipairs(obj:GetDescendants()) do tryPP(d) end
                     end
                 end
-                task.wait(0.05)
+                task.wait(0.03)
             end
         end
     end
 end)
 
--- Auto Sell
 task.spawn(function()
     while true do
         task.wait(S.SellDelay)
         if S.AutoSell and not S.Paused then
-            fireRemote("Sell")
-            fireRemote("SellAll")
-            fireRemote("SellItems")
-            for _, obj in ipairs(WS:GetDescendants()) do
-                local n = obj.Name:lower()
-                if n:find("sell") then tryProximity(obj) end
-            end
+            spamRemote({"Sell","SellAll","SellItems","SellOre","SellEggs","SellPets"})
+            findAndFire({"sell"})
         end
     end
 end)
 
--- Auto Dig
 task.spawn(function()
     while true do
-        task.wait(0.3)
+        task.wait(0.25)
         if S.AutoDig and not S.Paused then
-            for _, obj in ipairs(WS:GetDescendants()) do
-                local n = obj.Name:lower()
-                if n:find("dig") or n:find("drill") or n:find("mine") then tryProximity(obj) end
-            end
+            findAndFire({"dig","drill","mine","shovel"})
+            spamRemote({"Dig","Mine","StartDig"})
+        end
+        if S.AutoTreadmill and not S.Paused then
+            findAndFire({"treadmill","workout","exercise","train","gym"})
+            spamRemote({"UseTreadmill","Treadmill","Train"})
+        end
+        if S.AutoEquip and not S.Paused then
+            spamRemote({"EquipBest","AutoEquip","EquipPickaxe","EquipTool"})
         end
     end
 end)
 
--- Auto Farm (radius proximity spam)
 task.spawn(function()
     while true do
-        task.wait(0.2)
+        task.wait(0.15)
         if S.AutoFarm and not S.Paused then
             local r = root()
             if r then
                 for _, obj in ipairs(WS:GetDescendants()) do
-                    if obj:IsA("ProximityPrompt") or obj:IsA("ClickDetector") then
+                    local ok = false
+                    if obj:IsA("ProximityPrompt") then
                         local part = obj.Parent
-                        if part and part:IsA("BasePart") then
-                            if (part.Position - r.Position).Magnitude <= S.FarmRadius then
-                                if obj:IsA("ProximityPrompt") and fireproximityprompt then pcall(fireproximityprompt, obj) end
-                                if obj:IsA("ClickDetector") and fireclickdetector then pcall(fireclickdetector, obj) end
-                            end
+                        if part and part:IsA("BasePart") and (part.Position - r.Position).Magnitude <= S.FarmRadius then
+                            if fireproximityprompt then pcall(fireproximityprompt, obj) end
+                            ok = true
+                        end
+                    end
+                    if obj:IsA("ClickDetector") then
+                        local part = obj.Parent
+                        if part and part:IsA("BasePart") and (part.Position - r.Position).Magnitude <= S.FarmRadius then
+                            if fireclickdetector then pcall(fireclickdetector, obj) end
                         end
                     end
                 end
@@ -191,66 +214,52 @@ task.spawn(function()
     end
 end)
 
--- Auto Rebirth
 task.spawn(function()
     while true do
         task.wait(5)
         if S.AutoRebirth and cash() >= S.RebirthThreshold then
-            fireRemote("Rebirth")
-            fireRemote("DoRebirth")
-            fireRemote("PlayerRebirth")
+            spamRemote({"Rebirth","DoRebirth","PlayerRebirth","StartRebirth"})
+            findAndFire({"rebirth"})
         end
     end
 end)
 
--- Auto Click
 task.spawn(function()
     while true do
         task.wait(S.AutoClickDelay)
-        if S.AutoClick then
+        if S.AutoClick and not S.Paused then
             pcall(function()
-                local mouse = LP:GetMouse()
-                local target = mouse.Target
+                local target = Mouse.Target
                 if target then
-                    tryProximity(target)
-                    if target.Parent then tryProximity(target.Parent) end
+                    tryPP(target)
+                    if target.Parent then tryPP(target.Parent) end
                 end
             end)
         end
     end
 end)
 
--- ─── CLAIMS LOOPS ─────────────────────────────────────
-
 task.spawn(function()
     while true do
         task.wait(2)
-        if S.AutoHatch then
-            fireRemote("HatchEgg") fireRemote("Hatch")
-            for _, obj in ipairs(WS:GetDescendants()) do
-                local n = obj.Name:lower()
-                if n:find("hatch") or n:find("incubat") then tryProximity(obj) end
-            end
+        if S.AutoHatch and not S.Paused then
+            spamRemote({"HatchEgg","Hatch","OpenEgg","HatchPet"})
+            findAndFire({"hatch","incubat","egg"})
         end
-        if S.AutoClaim then
-            fireRemote("ClaimIndex") fireRemote("Claim") fireRemote("ClaimReward")
+        if S.AutoClaim and not S.Paused then
+            spamRemote({"ClaimIndex","Claim","ClaimReward","ClaimPrize","ClaimAll"})
+            findAndFire({"claim","index","prize"})
         end
-        if S.AutoPlace then
-            fireRemote("PlaceAnimal") fireRemote("PlacePet")
+        if S.AutoPlace and not S.Paused then
+            spamRemote({"PlaceAnimal","PlacePet","Place","Deploy"})
         end
-        if S.AutoStore then
-            fireRemote("StorePet") fireRemote("StoreAnimal")
+        if S.AutoStore and not S.Paused then
+            spamRemote({"StorePet","StoreAnimal","Store","StoreAll"})
+            findAndFire({"store","bank"})
         end
-    end
-end)
-
-task.spawn(function()
-    local bought = 0
-    while true do
-        task.wait(2)
-        if S.AutoBuyEgg and (S.EggLimit == 0 or bought < S.EggLimit) then
-            fireRemote("BuyEgg") fireRemote("PurchaseEgg")
-            bought = bought + 1
+        if S.AutoBuyEgg and not S.Paused then
+            spamRemote({"BuyEgg","PurchaseEgg","BuyPet"})
+            findAndFire({"buy","shop","purchase","egg"})
         end
     end
 end)
@@ -258,29 +267,51 @@ end)
 task.spawn(function()
     while true do
         task.wait(10)
-        if S.AutoDaily then fireRemote("ClaimDaily") fireRemote("DailyReward") end
-        if S.AutoQuest then fireRemote("CompleteQuest") fireRemote("ClaimQuest") end
-        if S.AutoEvent then fireRemote("ClaimEvent") fireRemote("EventReward") end
+        if S.AutoDaily and not S.Paused then
+            spamRemote({"ClaimDaily","DailyReward","Daily","ClaimLogin"})
+            findAndFire({"daily","login","reward"})
+        end
+        if S.AutoQuest and not S.Paused then
+            spamRemote({"CompleteQuest","ClaimQuest","Quest","FinishQuest"})
+            findAndFire({"quest","mission","task"})
+        end
+        if S.AutoEvent and not S.Paused then
+            spamRemote({"ClaimEvent","EventReward","Event","CollectEvent"})
+            findAndFire({"event","seasonal","special"})
+        end
     end
 end)
 
 task.spawn(function()
     while true do
         task.wait(3)
-        if S.AutoCollectReward then
-            for _, obj in ipairs(WS:GetDescendants()) do
-                local n = obj.Name:lower()
-                if n:find("reward") or n:find("chest") or n:find("crate") or n:find("loot") then
-                    tryProximity(obj)
-                end
-            end
+        if S.AutoCollectReward and not S.Paused then
+            findAndFire({"reward","chest","crate","loot","treasure","gift","bonus"})
+            spamRemote({"CollectReward","OpenChest","GetReward","ClaimChest"})
         end
     end
 end)
 
--- ─── MOVEMENT ─────────────────────────────────────────
+task.spawn(function()
+    while true do
+        task.wait(5)
+        if S.AutoUpgradePick and not S.Paused then
+            spamRemote({"UpgradePickaxe","UpgradePick","BuyPickaxe","PickaxeUpgrade"})
+            findAndFire({"upgrade","pickaxe","pick"})
+        end
+        if S.AutoUpgradeTrail and not S.Paused then
+            spamRemote({"UpgradeTrail","TrailUpgrade","BuyTrail"})
+        end
+        if S.AutoUpgradePlot and not S.Paused then
+            spamRemote({"UpgradePlot","PlotUpgrade","BuyPlot","ExpandPlot"})
+            findAndFire({"plot","land","expand"})
+        end
+        if S.AutoUpgradeTread and not S.Paused then
+            spamRemote({"UpgradeTreadmill","TreadmillUpgrade","BuyTreadmill"})
+        end
+    end
+end)
 
--- Speed / sprint
 task.spawn(function()
     while true do
         task.wait(0.1)
@@ -289,20 +320,11 @@ task.spawn(function()
             if S.SpeedEnabled then h.WalkSpeed = S.WalkSpeed
             elseif S.AutoSprint then h.WalkSpeed = S.SprintSpeed
             else h.WalkSpeed = 16 end
+            if S.HighJump then h.JumpPower = S.JumpPower end
         end
     end
 end)
 
--- High jump
-task.spawn(function()
-    while true do
-        task.wait(0.2)
-        local h = hum()
-        if h and S.HighJump then h.JumpPower = S.JumpPower end
-    end
-end)
-
--- Gravity
 task.spawn(function()
     while true do
         task.wait(0.5)
@@ -311,7 +333,6 @@ task.spawn(function()
     end
 end)
 
--- Infinite jump
 UIS.JumpRequest:Connect(function()
     if S.InfiniteJump then
         local h = hum()
@@ -319,13 +340,11 @@ UIS.JumpRequest:Connect(function()
     end
 end)
 
--- Fly
 task.spawn(function()
     while true do
         task.wait(0.05)
         if S.FlyEnabled then
-            local r = root()
-            local h = hum()
+            local r = root(); local h = hum()
             if r and h then
                 h.PlatformStand = true
                 local move = Vector3.new()
@@ -334,50 +353,136 @@ task.spawn(function()
                 if UIS:IsKeyDown(Enum.KeyCode.S) then move -= cam.CFrame.LookVector end
                 if UIS:IsKeyDown(Enum.KeyCode.A) then move -= cam.CFrame.RightVector end
                 if UIS:IsKeyDown(Enum.KeyCode.D) then move += cam.CFrame.RightVector end
-                if UIS:IsKeyDown(Enum.KeyCode.Space) then move += Vector3.new(0, 1, 0) end
-                if UIS:IsKeyDown(Enum.KeyCode.LeftShift) then move -= Vector3.new(0, 1, 0) end
+                if UIS:IsKeyDown(Enum.KeyCode.Space) then move += Vector3.new(0,1,0) end
+                if UIS:IsKeyDown(Enum.KeyCode.LeftShift) then move -= Vector3.new(0,1,0) end
                 if move.Magnitude > 0 then r.CFrame = r.CFrame + move.Unit * S.FlySpeed end
             end
         end
     end
 end)
 
--- Noclip
 RunService.Stepped:Connect(function()
     if S.NoclipEnabled and LP.Character then
         for _, p in ipairs(LP.Character:GetDescendants()) do
             if p:IsA("BasePart") then p.CanCollide = false end
         end
     end
-end)
-
--- Anti slip
-RunService.Stepped:Connect(function()
     if S.AntiSlip and LP.Character then
         for _, p in ipairs(LP.Character:GetDescendants()) do
             if p:IsA("BasePart") then
-                pcall(function()
-                    p.CustomPhysicalProperties = PhysicalProperties.new(0.3, 0, 0, 0, 0)
-                end)
+                pcall(function() p.CustomPhysicalProperties = PhysicalProperties.new(0.3,0,0,0,0) end)
             end
         end
     end
 end)
 
--- Anti void
 task.spawn(function()
     while true do
         task.wait(0.5)
         if S.AntiVoid then
             local r = root()
-            if r and r.Position.Y < S.AntiVoidY then
-                r.CFrame = CFrame.new(0, 100, 0)
+            if r and r.Position.Y < S.AntiVoidY then r.CFrame = CFrame.new(0,100,0) end
+        end
+    end
+end)
+
+task.spawn(function()
+    while true do
+        task.wait(55)
+        if S.AntiAFK then
+            pcall(function()
+                local vim = game:GetService("VirtualInputManager")
+                vim:SendKeyEvent(true, Enum.KeyCode.W, false, game)
+                task.wait(0.1)
+                vim:SendKeyEvent(false, Enum.KeyCode.W, false, game)
+            end)
+        end
+    end
+end)
+
+task.spawn(function()
+    while true do
+        task.wait(2)
+        pcall(function()
+            local L = game:GetService("Lighting")
+            if S.Fullbright then
+                L.Brightness=2; L.ClockTime=14; L.FogEnd=100000
+                L.GlobalShadows=false
+                L.Ambient=Color3.new(1,1,1)
+                L.OutdoorAmbient=Color3.new(1,1,1)
+            end
+        end)
+    end
+end)
+
+task.spawn(function()
+    while true do
+        task.wait(math.max(S.ChatDelay, 3))
+        if S.ChatSpam then
+            pcall(function()
+                local req = RS:FindFirstChild("SayMessageRequest", true)
+                if req then req:FireServer(S.ChatMsg, "All") end
+            end)
+        end
+    end
+end)
+
+task.spawn(function()
+    while true do
+        task.wait(30)
+        if S.ServerHop and #Players:GetPlayers() <= S.ServerHopMin then
+            pcall(function() game:GetService("TeleportService"):Teleport(game.PlaceId, LP) end)
+        end
+    end
+end)
+
+task.spawn(function()
+    local angle = 0
+    while true do
+        task.wait(0.05)
+        if S.OrbitEnabled and S.TargetPlayer ~= "" then
+            local tp = Players:FindFirstChild(S.TargetPlayer)
+            if tp and tp.Character then
+                local tr = tp.Character:FindFirstChild("HumanoidRootPart")
+                local r = root()
+                if tr and r then
+                    angle = angle + S.OrbitSpeed * 0.05
+                    r.CFrame = CFrame.new(tr.Position + Vector3.new(math.cos(angle)*S.OrbitRadius, 0, math.sin(angle)*S.OrbitRadius), tr.Position)
+                end
             end
         end
     end
 end)
 
--- ─── ESP ──────────────────────────────────────────────
+task.spawn(function()
+    while true do
+        task.wait(2)
+        if S.LoopTP and S.LoopTPName ~= "" then
+            local obj = WS:FindFirstChild(S.LoopTPName, true)
+            if obj then
+                local pos = obj:IsA("BasePart") and obj.Position
+                    or (obj:IsA("Model") and obj.PrimaryPart and obj.PrimaryPart.Position)
+                if pos then tpTo(pos) end
+            end
+        end
+    end
+end)
+
+RunService.RenderStepped:Connect(function()
+    frameCount = frameCount + 1
+    local now = tick()
+    if now - lastFPSTime >= 1 then lastFPS=frameCount; frameCount=0; lastFPSTime=now end
+end)
+task.spawn(function()
+    while true do
+        task.wait(5)
+        pcall(function()
+            local st = game:GetService("Stats")
+            pingVal = math.floor(st.Network.ServerStatsItem["Data Ping"]:GetValue())
+        end)
+    end
+end)
+
 local espFolder = Instance.new("Folder")
 espFolder.Name = "RivoESP"
 espFolder.Parent = WS
@@ -391,40 +496,36 @@ end
 
 local function makeLabel(part, text, color)
     local bb = Instance.new("BillboardGui")
-    bb.Size = UDim2.new(0, 150, 0, 40)
-    bb.StudsOffset = Vector3.new(0, 4, 0)
+    bb.Size = UDim2.new(0,160,0,44)
+    bb.StudsOffset = Vector3.new(0,4,0)
     bb.AlwaysOnTop = true
     bb.Adornee = part
     bb.Parent = espFolder
-
     local bg = Instance.new("Frame", bb)
-    bg.Size = UDim2.new(1, 0, 1, 0)
-    bg.BackgroundColor3 = Color3.fromRGB(0, 0, 0)
+    bg.Size = UDim2.new(1,0,1,0)
+    bg.BackgroundColor3 = Color3.fromRGB(0,0,0)
     bg.BackgroundTransparency = 0.4
-    Instance.new("UICorner", bg).CornerRadius = UDim.new(0, 6)
-
+    Instance.new("UICorner", bg).CornerRadius = UDim.new(0,6)
     local lbl = Instance.new("TextLabel", bg)
-    lbl.Size = UDim2.new(1, 0, S.ESPHealth and 0.65 or 1, 0)
+    lbl.Size = UDim2.new(1,0, S.ESPHealth and 0.65 or 1, 0)
     lbl.BackgroundTransparency = 1
     lbl.TextColor3 = color
     lbl.TextScaled = true
     lbl.Font = Enum.Font.GothamBold
-
     local distStr = ""
     if S.ESPDistance then
         local r = root()
-        if r then distStr = "  [" .. math.floor((part.Position - r.Position).Magnitude) .. "m]" end
+        if r then distStr = "  ["..math.floor((part.Position-r.Position).Magnitude).."m]" end
     end
     lbl.Text = text .. distStr
-
     if S.ESPHealth then
-        local h = part.Parent and part.Parent:FindFirstChildOfClass("Humanoid")
-        if h then
+        local h2 = part.Parent and part.Parent:FindFirstChildOfClass("Humanoid")
+        if h2 then
             local bar = Instance.new("Frame", bg)
-            bar.Size = UDim2.new(h.Health / h.MaxHealth, 0, 0.3, 0)
-            bar.Position = UDim2.new(0, 0, 0.7, 0)
-            bar.BackgroundColor3 = Color3.fromRGB(50, 220, 50)
-            Instance.new("UICorner", bar).CornerRadius = UDim.new(0, 3)
+            bar.Size = UDim2.new(h2.Health/h2.MaxHealth, 0, 0.3, 0)
+            bar.Position = UDim2.new(0,0,0.7,0)
+            bar.BackgroundColor3 = Color3.fromRGB(50,220,50)
+            Instance.new("UICorner", bar).CornerRadius = UDim.new(0,3)
         end
     end
 end
@@ -441,19 +542,17 @@ local function makeTracer(part, color)
         while S.ESPTracers and part and part.Parent do
             local cam = WS.CurrentCamera
             local vp = cam.ViewportSize
-            local oy = S.TracerOrigin == "Center" and vp.Y / 2 or vp.Y
-            local origin = Vector2.new(vp.X / 2, oy)
+            local oy = S.TracerOrigin == "Center" and vp.Y/2 or vp.Y
+            local ox = vp.X/2
             local pos, onScreen = cam:WorldToViewportPoint(part.Position)
             if onScreen then
-                local dx, dy = pos.X - origin.X, pos.Y - origin.Y
-                local len = math.sqrt(dx * dx + dy * dy)
-                line.Position = UDim2.new(0, origin.X, 0, origin.Y)
-                line.Size = UDim2.new(0, len, 0, 1)
-                line.Rotation = math.deg(math.atan2(dy, dx))
+                local dx,dy = pos.X-ox, pos.Y-oy
+                local len = math.sqrt(dx*dx+dy*dy)
+                line.Position = UDim2.new(0,ox,0,oy)
+                line.Size = UDim2.new(0,len,0,1)
+                line.Rotation = math.deg(math.atan2(dy,dx))
                 line.Visible = true
-            else
-                line.Visible = false
-            end
+            else line.Visible = false end
             task.wait(0.05)
         end
         sg:Destroy()
@@ -468,8 +567,8 @@ task.spawn(function()
             for _, obj in ipairs(WS:GetDescendants()) do
                 if obj:IsA("BasePart") then
                     local n = obj.Name:lower()
-                    if n:find("egg") or n:find("ore") or n:find("crystal") then
-                        makeLabel(obj, obj.Name, Color3.fromRGB(255, 230, 50))
+                    if n:find("egg") or n:find("ore") or n:find("crystal") or n:find("gem") or n:find("rock") then
+                        makeLabel(obj, obj.Name, Color3.fromRGB(255,230,50))
                     end
                 end
             end
@@ -478,11 +577,11 @@ task.spawn(function()
             for _, obj in ipairs(WS:GetDescendants()) do
                 if obj:IsA("Model") then
                     local n = obj.Name:lower()
-                    if n:find("animal") or n:find("pet") then
+                    if n:find("animal") or n:find("pet") or n:find("creature") then
                         local p = obj.PrimaryPart or obj:FindFirstChildOfClass("BasePart")
                         if p then
-                            makeLabel(p, obj.Name, Color3.fromRGB(50, 255, 160))
-                            if S.ESPTracers then makeTracer(p, Color3.fromRGB(50, 255, 160)) end
+                            makeLabel(p, obj.Name, Color3.fromRGB(50,255,160))
+                            if S.ESPTracers then makeTracer(p, Color3.fromRGB(50,255,160)) end
                         end
                     end
                 end
@@ -493,8 +592,8 @@ task.spawn(function()
                 if plr ~= LP and plr.Character then
                     local hrp = plr.Character:FindFirstChild("HumanoidRootPart")
                     if hrp then
-                        makeLabel(hrp, plr.Name, Color3.fromRGB(255, 70, 70))
-                        if S.ESPTracers then makeTracer(hrp, Color3.fromRGB(255, 70, 70)) end
+                        makeLabel(hrp, plr.Name, Color3.fromRGB(255,70,70))
+                        if S.ESPTracers then makeTracer(hrp, Color3.fromRGB(255,70,70)) end
                     end
                 end
             end
@@ -502,156 +601,43 @@ task.spawn(function()
     end
 end)
 
--- ─── MISC LOOPS ───────────────────────────────────────
-
--- Anti AFK
-task.spawn(function()
-    while true do
-        task.wait(55)
-        if S.AntiAFK then
-            pcall(function()
-                local vim = game:GetService("VirtualInputManager")
-                vim:SendKeyEvent(true, Enum.KeyCode.W, false, game)
-                task.wait(0.1)
-                vim:SendKeyEvent(false, Enum.KeyCode.W, false, game)
-            end)
-        end
-    end
-end)
-
--- Fullbright
-task.spawn(function()
-    while true do
-        task.wait(2)
-        pcall(function()
-            local L = game:GetService("Lighting")
-            if S.Fullbright then
-                L.Brightness = 2
-                L.ClockTime = 14
-                L.FogEnd = 100000
-                L.GlobalShadows = false
-                L.Ambient = Color3.new(1, 1, 1)
-                L.OutdoorAmbient = Color3.new(1, 1, 1)
-            end
-        end)
-    end
-end)
-
--- Chat spam
-task.spawn(function()
-    while true do
-        task.wait(S.ChatDelay)
-        if S.ChatSpam then
-            pcall(function()
-                local req = RS:FindFirstChild("SayMessageRequest", true)
-                if req then req:FireServer(S.ChatMsg, "All") end
-            end)
-        end
-    end
-end)
-
--- Server hop
-task.spawn(function()
-    while true do
-        task.wait(30)
-        if S.ServerHop and #Players:GetPlayers() <= S.ServerHopMin then
-            pcall(function()
-                game:GetService("TeleportService"):Teleport(game.PlaceId, LP)
-            end)
-        end
-    end
-end)
-
--- Orbit
-task.spawn(function()
-    local angle = 0
-    while true do
-        task.wait(0.05)
-        if S.OrbitEnabled and S.TargetPlayer ~= "" then
-            local tp = Players:FindFirstChild(S.TargetPlayer)
-            if tp and tp.Character then
-                local tr = tp.Character:FindFirstChild("HumanoidRootPart")
-                local r = root()
-                if tr and r then
-                    angle = angle + S.OrbitSpeed * 0.05
-                    local offset = Vector3.new(math.cos(angle) * S.OrbitRadius, 0, math.sin(angle) * S.OrbitRadius)
-                    r.CFrame = CFrame.new(tr.Position + offset, tr.Position)
-                end
-            end
-        end
-    end
-end)
-
--- ─── INFO PANEL ───────────────────────────────────────
-RunService.RenderStepped:Connect(function()
-    frameCount = frameCount + 1
-    local now = tick()
-    if now - lastFPSTime >= 1 then
-        lastFPS = frameCount
-        frameCount = 0
-        lastFPSTime = now
-    end
-end)
-
-task.spawn(function()
-    while true do
-        task.wait(5)
-        pcall(function()
-            local stats = game:GetService("Stats")
-            pingVal = math.floor(stats.Network.ServerStatsItem["Data Ping"]:GetValue())
-        end)
-    end
-end)
-
 local infoSG = Instance.new("ScreenGui")
 infoSG.Name = "RivoInfoPanel"
 infoSG.ResetOnSpawn = false
 infoSG.Parent = game:GetService("CoreGui")
-
 local infoFrame = Instance.new("Frame", infoSG)
-infoFrame.Size = UDim2.new(0, 210, 0, 120)
-infoFrame.Position = UDim2.new(1, -220, 0, 10)
-infoFrame.BackgroundColor3 = Color3.fromRGB(8, 14, 36)
+infoFrame.Size = UDim2.new(0,210,0,120)
+infoFrame.Position = UDim2.new(1,-220,0,10)
+infoFrame.BackgroundColor3 = Color3.fromRGB(8,14,36)
 infoFrame.BackgroundTransparency = 0.3
 infoFrame.Visible = false
-Instance.new("UICorner", infoFrame).CornerRadius = UDim.new(0, 10)
+Instance.new("UICorner", infoFrame).CornerRadius = UDim.new(0,10)
 local iStroke = Instance.new("UIStroke", infoFrame)
-iStroke.Color = Color3.fromRGB(60, 130, 255)
-iStroke.Thickness = 1.5
-
+iStroke.Color = Color3.fromRGB(60,130,255); iStroke.Thickness = 1.5
 local iLabels = {}
-for i, k in ipairs({ "FPS", "Ping", "Cash", "Clock", "Players" }) do
+for i, k in ipairs({"FPS","Ping","Cash","Clock","Players"}) do
     local l = Instance.new("TextLabel", infoFrame)
-    l.Size = UDim2.new(1, -10, 0, 20)
-    l.Position = UDim2.new(0, 5, 0, 4 + (i - 1) * 22)
+    l.Size = UDim2.new(1,-10,0,20)
+    l.Position = UDim2.new(0,5,0,4+(i-1)*22)
     l.BackgroundTransparency = 1
-    l.TextColor3 = Color3.fromRGB(180, 210, 255)
+    l.TextColor3 = Color3.fromRGB(180,210,255)
     l.Font = Enum.Font.GothamBold
     l.TextSize = 12
     l.TextXAlignment = Enum.TextXAlignment.Left
-    l.Text = k .. ": —"
+    l.Text = k..": —"
     iLabels[k] = l
 end
-
 task.spawn(function()
     while true do
         task.wait(0.5)
         infoFrame.Visible = S.InfoPanel
         if S.InfoPanel then
-            iLabels["FPS"].Text  = "FPS: "     .. (S.ShowFPS   and lastFPS          or "—")
-            iLabels["Ping"].Text = "Ping: "    .. (S.ShowPing  and pingVal .. "ms"  or "—")
-            iLabels["Cash"].Text = "Cash: "    .. (S.ShowCash  and cash()           or "—")
-            iLabels["Clock"].Text= "Clock: "   .. (S.ShowClock and os.date("%H:%M:%S") or "—")
-            iLabels["Players"].Text = "Players: " .. #Players:GetPlayers()
+            iLabels["FPS"].Text  = "FPS: "    ..(S.ShowFPS   and lastFPS or "—")
+            iLabels["Ping"].Text = "Ping: "   ..(S.ShowPing  and pingVal.."ms" or "—")
+            iLabels["Cash"].Text = "Cash: "   ..(S.ShowCash  and cash() or "—")
+            iLabels["Clock"].Text= "Clock: "  ..(S.ShowClock and os.date("%H:%M:%S") or "—")
+            iLabels["Players"].Text = "Players: "..#Players:GetPlayers()
         end
-    end
-end)
-
--- ─── HOTKEYS ──────────────────────────────────────────
-UIS.JumpRequest:Connect(function()
-    if S.InfiniteJump then
-        local h = hum()
-        if h then h:ChangeState(Enum.HumanoidStateType.Jumping) end
     end
 end)
 
@@ -659,7 +645,6 @@ UIS.InputBegan:Connect(function(input, gp)
     if gp then return end
     if input.KeyCode == Enum.KeyCode.F2 then
         S.Paused = not S.Paused
-        WindUI:Notify({ Title = "Rivo Hub", Content = "Paused: " .. tostring(S.Paused), Duration = 2 })
     end
     if input.KeyCode == Enum.KeyCode.F3 then
         S.FlyEnabled = not S.FlyEnabled
@@ -671,294 +656,384 @@ UIS.InputBegan:Connect(function(input, gp)
     end
 end)
 
--- ─── WINDOW ───────────────────────────────────────────
-local Window = WindUI:CreateWindow({
-    Title = "Rivo Hub  •  discord.gg/ZN4jtyPNHG",
-    Icon = "rbxassetid://1234567890",
-    Author = "Rivo",
-    Folder = "RivoHub",
-    Size = UDim2.fromOffset(580, 440),
-    Theme = "Dark",
-    Resizable = true,
-})
+local keySG = Instance.new("ScreenGui")
+keySG.Name = "RivoKey"
+keySG.ResetOnSpawn = false
+keySG.ZIndexBehavior = Enum.ZIndexBehavior.Sibling
+keySG.Parent = game:GetService("CoreGui")
 
--- ─── TAB: FARM ────────────────────────────────────────
-local TFarm = Window:Tab({ Title = "Farm", Icon = "pickaxe" })
-TFarm:Section({ Title = "Breaking", Opened = true })
-TFarm:Toggle({ Title = "Auto Break", Default = false, Callback = function(v) S.AutoBreak = v end })
-TFarm:Slider({ Title = "Break Delay", Value = { Min = 0.05, Max = 1, Default = 0.2 }, Step = 0.05, Callback = function(v) S.BreakDelay = v end })
-TFarm:Toggle({ Title = "Auto Dig", Default = false, Callback = function(v) S.AutoDig = v end })
-TFarm:Toggle({ Title = "Auto Farm (radius)", Default = false, Callback = function(v) S.AutoFarm = v end })
-TFarm:Slider({ Title = "Farm Radius", Value = { Min = 10, Max = 300, Default = 60 }, Step = 5, Callback = function(v) S.FarmRadius = v end })
-TFarm:Section({ Title = "Collecting", Opened = true })
-TFarm:Toggle({ Title = "Auto Collect", Default = false, Callback = function(v) S.AutoCollect = v end })
-TFarm:Slider({ Title = "Collect Delay", Value = { Min = 0.05, Max = 1, Default = 0.2 }, Step = 0.05, Callback = function(v) S.CollectDelay = v end })
-TFarm:Toggle({ Title = "Auto Click (mouse target)", Default = false, Callback = function(v) S.AutoClick = v end })
-TFarm:Slider({ Title = "Auto Click Delay", Value = { Min = 0.01, Max = 1, Default = 0.05 }, Step = 0.01, Callback = function(v) S.AutoClickDelay = v end })
-TFarm:Section({ Title = "Selling & Rebirth", Opened = true })
-TFarm:Toggle({ Title = "Auto Sell", Default = false, Callback = function(v) S.AutoSell = v end })
-TFarm:Slider({ Title = "Sell Delay (sec)", Value = { Min = 1, Max = 60, Default = 5 }, Step = 1, Callback = function(v) S.SellDelay = v end })
-TFarm:Toggle({ Title = "Auto Rebirth", Default = false, Callback = function(v) S.AutoRebirth = v end })
-TFarm:Input({ Title = "Rebirth Cash Threshold", Value = "1000000", Type = "number", Callback = function(v) S.RebirthThreshold = tonumber(v) or 1000000 end })
+local overlay = Instance.new("Frame", keySG)
+overlay.Size = UDim2.new(1,0,1,0)
+overlay.BackgroundColor3 = Color3.fromRGB(0,0,0)
+overlay.BackgroundTransparency = 0.4
+overlay.ZIndex = 10
 
--- ─── TAB: CLAIMS ──────────────────────────────────────
-local TClaim = Window:Tab({ Title = "Claims", Icon = "gift" })
-TClaim:Toggle({ Title = "Auto Hatch", Default = false, Callback = function(v) S.AutoHatch = v end })
-TClaim:Toggle({ Title = "Auto Claim", Default = false, Callback = function(v) S.AutoClaim = v end })
-TClaim:Toggle({ Title = "Auto Place Animals", Default = false, Callback = function(v) S.AutoPlace = v end })
-TClaim:Toggle({ Title = "Auto Store Pets", Default = false, Callback = function(v) S.AutoStore = v end })
-TClaim:Toggle({ Title = "Auto Buy Egg", Default = false, Callback = function(v) S.AutoBuyEgg = v end })
-TClaim:Input({ Title = "Egg Buy Limit (0 = ∞)", Value = "10", Type = "number", Callback = function(v) S.EggLimit = tonumber(v) or 10 end })
-TClaim:Toggle({ Title = "Auto Collect Chests/Rewards", Default = false, Callback = function(v) S.AutoCollectReward = v end })
-TClaim:Section({ Title = "Daily / Quest / Event", Opened = true })
-TClaim:Toggle({ Title = "Auto Daily", Default = false, Callback = function(v) S.AutoDaily = v end })
-TClaim:Toggle({ Title = "Auto Quest", Default = false, Callback = function(v) S.AutoQuest = v end })
-TClaim:Toggle({ Title = "Auto Event", Default = false, Callback = function(v) S.AutoEvent = v end })
+local keyBox = Instance.new("Frame", keySG)
+keyBox.Size = UDim2.new(0,420,0,260)
+keyBox.Position = UDim2.new(0.5,-210,0.5,-130)
+keyBox.BackgroundColor3 = Color3.fromRGB(8,12,30)
+keyBox.ZIndex = 11
+Instance.new("UICorner", keyBox).CornerRadius = UDim.new(0,14)
+local kStroke = Instance.new("UIStroke", keyBox)
+kStroke.Color = Color3.fromRGB(60,130,255); kStroke.Thickness = 2
 
--- ─── TAB: ESP ─────────────────────────────────────────
-local TESP = Window:Tab({ Title = "ESP", Icon = "eye" })
-TESP:Toggle({ Title = "Egg / Ore ESP", Default = false, Callback = function(v) S.ESPEgg = v end })
-TESP:Toggle({ Title = "Animal / Pet ESP", Default = false, Callback = function(v) S.ESPAnimal = v end })
-TESP:Toggle({ Title = "Player ESP", Default = false, Callback = function(v) S.ESPPlayer = v end })
-TESP:Toggle({ Title = "Show Distance", Default = false, Callback = function(v) S.ESPDistance = v end })
-TESP:Toggle({ Title = "Health Bars", Default = false, Callback = function(v) S.ESPHealth = v end })
-TESP:Toggle({ Title = "Tracers", Default = false, Callback = function(v) S.ESPTracers = v end })
-TESP:Dropdown({ Title = "Tracer Origin", Values = { "Bottom", "Center" }, Value = "Bottom", Callback = function(v) S.TracerOrigin = v end })
+local kTitle = Instance.new("TextLabel", keyBox)
+kTitle.Size = UDim2.new(1,0,0,50)
+kTitle.Position = UDim2.new(0,0,0,0)
+kTitle.BackgroundTransparency = 1
+kTitle.Text = "🔑  Rivo Hub"
+kTitle.TextColor3 = Color3.fromRGB(255,255,255)
+kTitle.Font = Enum.Font.GothamBold
+kTitle.TextSize = 22
+kTitle.ZIndex = 12
 
--- ─── TAB: MOVEMENT ────────────────────────────────────
-local TMove = Window:Tab({ Title = "Movement", Icon = "activity" })
-TMove:Section({ Title = "Speed", Opened = true })
-TMove:Toggle({ Title = "Speed Hack", Default = false, Callback = function(v) S.SpeedEnabled = v end })
-TMove:Slider({ Title = "Walk Speed", Value = { Min = 16, Max = 300, Default = 16 }, Step = 1, Callback = function(v) S.WalkSpeed = v end })
-TMove:Toggle({ Title = "Auto Sprint", Default = false, Callback = function(v) S.AutoSprint = v end })
-TMove:Slider({ Title = "Sprint Speed", Value = { Min = 16, Max = 100, Default = 28 }, Step = 1, Callback = function(v) S.SprintSpeed = v end })
-TMove:Section({ Title = "Air", Opened = true })
-TMove:Toggle({ Title = "Fly  [F3]", Default = false, Callback = function(v)
-    S.FlyEnabled = v
-    local h = hum()
-    if h and not v then h.PlatformStand = false end
-end })
-TMove:Slider({ Title = "Fly Speed", Value = { Min = 1, Max = 100, Default = 3 }, Step = 1, Callback = function(v) S.FlySpeed = v end })
-TMove:Toggle({ Title = "Infinite Jump", Default = false, Callback = function(v) S.InfiniteJump = v end })
-TMove:Toggle({ Title = "High Jump", Default = false, Callback = function(v) S.HighJump = v end })
-TMove:Slider({ Title = "Jump Power", Value = { Min = 50, Max = 500, Default = 100 }, Step = 10, Callback = function(v) S.JumpPower = v end })
-TMove:Section({ Title = "Physics", Opened = true })
-TMove:Toggle({ Title = "Low Gravity", Default = false, Callback = function(v) S.LowGravity = v end })
-TMove:Slider({ Title = "Gravity", Value = { Min = 5, Max = 196, Default = 50 }, Step = 5, Callback = function(v) S.GravityVal = v end })
-TMove:Toggle({ Title = "Noclip  [F4]", Default = false, Callback = function(v) S.NoclipEnabled = v end })
-TMove:Toggle({ Title = "Anti Slip", Default = false, Callback = function(v) S.AntiSlip = v end })
-TMove:Toggle({ Title = "Anti Void", Default = false, Callback = function(v) S.AntiVoid = v end })
-TMove:Slider({ Title = "Void Y Threshold", Value = { Min = -500, Max = 0, Default = -100 }, Step = 10, Callback = function(v) S.AntiVoidY = v end })
+local kSub = Instance.new("TextLabel", keyBox)
+kSub.Size = UDim2.new(1,-40,0,30)
+kSub.Position = UDim2.new(0,20,0,48)
+kSub.BackgroundTransparency = 1
+kSub.Text = "Enter your key to unlock Rivo Hub"
+kSub.TextColor3 = Color3.fromRGB(140,160,200)
+kSub.Font = Enum.Font.Gotham
+kSub.TextSize = 14
+kSub.ZIndex = 12
 
--- ─── TAB: PLAYERS ─────────────────────────────────────
-local TPlayers = Window:Tab({ Title = "Players", Icon = "users" })
-local function playerNames()
-    local t = {}
-    for _, p in ipairs(Players:GetPlayers()) do
-        if p ~= LP then table.insert(t, p.Name) end
+local kInput = Instance.new("TextBox", keyBox)
+kInput.Size = UDim2.new(1,-40,0,40)
+kInput.Position = UDim2.new(0,20,0,92)
+kInput.BackgroundColor3 = Color3.fromRGB(15,22,50)
+kInput.TextColor3 = Color3.fromRGB(220,230,255)
+kInput.PlaceholderText = "Paste key here..."
+kInput.PlaceholderColor3 = Color3.fromRGB(80,90,120)
+kInput.Font = Enum.Font.GothamBold
+kInput.TextSize = 14
+kInput.ClearTextOnFocus = false
+kInput.ZIndex = 12
+Instance.new("UICorner", kInput).CornerRadius = UDim.new(0,8)
+local kiStroke = Instance.new("UIStroke", kInput)
+kiStroke.Color = Color3.fromRGB(60,130,255); kiStroke.Thickness = 1.5
+
+local kStatus = Instance.new("TextLabel", keyBox)
+kStatus.Size = UDim2.new(1,-40,0,24)
+kStatus.Position = UDim2.new(0,20,0,140)
+kStatus.BackgroundTransparency = 1
+kStatus.Text = ""
+kStatus.TextColor3 = Color3.fromRGB(255,80,80)
+kStatus.Font = Enum.Font.Gotham
+kStatus.TextSize = 13
+kStatus.ZIndex = 12
+
+local kBtn = Instance.new("TextButton", keyBox)
+kBtn.Size = UDim2.new(1,-40,0,40)
+kBtn.Position = UDim2.new(0,20,0,172)
+kBtn.BackgroundColor3 = Color3.fromRGB(40,100,220)
+kBtn.Text = "Unlock"
+kBtn.TextColor3 = Color3.fromRGB(255,255,255)
+kBtn.Font = Enum.Font.GothamBold
+kBtn.TextSize = 16
+kBtn.ZIndex = 12
+Instance.new("UICorner", kBtn).CornerRadius = UDim.new(0,8)
+
+local kGetKey = Instance.new("TextButton", keyBox)
+kGetKey.Size = UDim2.new(1,-40,0,30)
+kGetKey.Position = UDim2.new(0,20,0,220)
+kGetKey.BackgroundTransparency = 1
+kGetKey.Text = "🔗  Get Key — Click to copy Discord"
+kGetKey.TextColor3 = Color3.fromRGB(100,160,255)
+kGetKey.Font = Enum.Font.Gotham
+kGetKey.TextSize = 13
+kGetKey.ZIndex = 12
+
+kGetKey.MouseButton1Click:Connect(function()
+    pcall(function()
+        game:GetService("GuiService"):SetClipboard(DISCORD)
+    end)
+    kGetKey.Text = "✅  Copied! — " .. DISCORD
+    task.delay(3, function()
+        kGetKey.Text = "🔗  Get Key — Click to copy Discord"
+    end)
+end)
+
+local function launchHub()
+    keySG.Enabled = false
+    unlocked = true
+
+    local WindUI = loadstring(game:HttpGet("https://github.com/Footagesus/WindUI/releases/latest/download/main.lua"))()
+
+    local Window = WindUI:CreateWindow({
+        Title = "Rivo Hub  •  discord.gg/ZN4jtyPNHG",
+        Icon = "rbxassetid://1234567890",
+        Author = "Rivo",
+        Folder = "RivoHub",
+        Size = UDim2.fromOffset(580,440),
+        Theme = "Dark",
+        Resizable = true,
+    })
+
+    local TFarm = Window:Tab({Title="Farm", Icon="pickaxe"})
+    TFarm:Section({Title="Breaking & Digging", Opened=true})
+    TFarm:Toggle({Title="Auto Break", Default=false, Callback=function(v) S.AutoBreak=v end})
+    TFarm:Slider({Title="Break Delay", Value={Min=0.05,Max=1,Default=0.15}, Step=0.05, Callback=function(v) S.BreakDelay=v end})
+    TFarm:Toggle({Title="Auto Dig", Default=false, Callback=function(v) S.AutoDig=v end})
+    TFarm:Toggle({Title="Auto Farm (radius)", Default=false, Callback=function(v) S.AutoFarm=v end})
+    TFarm:Slider({Title="Farm Radius", Value={Min=10,Max=300,Default=60}, Step=5, Callback=function(v) S.FarmRadius=v end})
+    TFarm:Section({Title="Collecting & Selling", Opened=true})
+    TFarm:Toggle({Title="Auto Collect", Default=false, Callback=function(v) S.AutoCollect=v end})
+    TFarm:Slider({Title="Collect Delay", Value={Min=0.05,Max=1,Default=0.15}, Step=0.05, Callback=function(v) S.CollectDelay=v end})
+    TFarm:Toggle({Title="Auto Sell", Default=false, Callback=function(v) S.AutoSell=v end})
+    TFarm:Slider({Title="Sell Delay (sec)", Value={Min=1,Max=60,Default=5}, Step=1, Callback=function(v) S.SellDelay=v end})
+    TFarm:Toggle({Title="Auto Click (mouse target)", Default=false, Callback=function(v) S.AutoClick=v end})
+    TFarm:Slider({Title="Auto Click Delay", Value={Min=0.01,Max=1,Default=0.05}, Step=0.01, Callback=function(v) S.AutoClickDelay=v end})
+    TFarm:Section({Title="Rebirth", Opened=true})
+    TFarm:Toggle({Title="Auto Rebirth", Default=false, Callback=function(v) S.AutoRebirth=v end})
+    TFarm:Input({Title="Rebirth Cash Threshold", Value="1000000", Type="number", Callback=function(v) S.RebirthThreshold=tonumber(v) or 1000000 end})
+
+    local TTrain = Window:Tab({Title="Training", Icon="dumbbell"})
+    TTrain:Toggle({Title="Auto Equip Best", Default=false, Callback=function(v) S.AutoEquip=v end})
+    TTrain:Toggle({Title="Auto Treadmill", Default=false, Callback=function(v) S.AutoTreadmill=v end})
+    TTrain:Section({Title="Auto Upgrade", Opened=true})
+    TTrain:Toggle({Title="Auto Upgrade Pickaxe", Default=false, Callback=function(v) S.AutoUpgradePick=v end})
+    TTrain:Toggle({Title="Auto Upgrade Trail", Default=false, Callback=function(v) S.AutoUpgradeTrail=v end})
+    TTrain:Toggle({Title="Auto Upgrade Plot", Default=false, Callback=function(v) S.AutoUpgradePlot=v end})
+    TTrain:Toggle({Title="Auto Upgrade Treadmill", Default=false, Callback=function(v) S.AutoUpgradeTread=v end})
+    TTrain:Section({Title="Spending Limits", Opened=false})
+    TTrain:Input({Title="Cash Reserve (keep above)", Value="0", Type="number", Callback=function(v) S.CashReserve=tonumber(v) or 0 end})
+    TTrain:Input({Title="Max Price Per Purchase", Value="0", Type="number", Callback=function(v) S.MaxPrice=tonumber(v) or 0 end})
+    TTrain:Input({Title="Session Budget (0=unlimited)", Value="0", Type="number", Callback=function(v) S.SessionBudget=tonumber(v) or 0 end})
+
+    local TClaim = Window:Tab({Title="Claims", Icon="gift"})
+    TClaim:Toggle({Title="Auto Hatch", Default=false, Callback=function(v) S.AutoHatch=v end})
+    TClaim:Toggle({Title="Auto Claim", Default=false, Callback=function(v) S.AutoClaim=v end})
+    TClaim:Toggle({Title="Auto Place Animals", Default=false, Callback=function(v) S.AutoPlace=v end})
+    TClaim:Toggle({Title="Auto Store Pets", Default=false, Callback=function(v) S.AutoStore=v end})
+    TClaim:Toggle({Title="Auto Buy Egg", Default=false, Callback=function(v) S.AutoBuyEgg=v end})
+    TClaim:Input({Title="Egg Buy Limit (0=unlimited)", Value="10", Type="number", Callback=function(v) S.EggLimit=tonumber(v) or 10 end})
+    TClaim:Toggle({Title="Auto Collect Chests & Rewards", Default=false, Callback=function(v) S.AutoCollectReward=v end})
+    TClaim:Section({Title="Daily / Quest / Event", Opened=true})
+    TClaim:Toggle({Title="Auto Daily", Default=false, Callback=function(v) S.AutoDaily=v end})
+    TClaim:Toggle({Title="Auto Quest", Default=false, Callback=function(v) S.AutoQuest=v end})
+    TClaim:Toggle({Title="Auto Event", Default=false, Callback=function(v) S.AutoEvent=v end})
+
+    local TESP = Window:Tab({Title="ESP", Icon="eye"})
+    TESP:Toggle({Title="Egg / Ore ESP", Default=false, Callback=function(v) S.ESPEgg=v end})
+    TESP:Toggle({Title="Animal / Pet ESP", Default=false, Callback=function(v) S.ESPAnimal=v end})
+    TESP:Toggle({Title="Player ESP", Default=false, Callback=function(v) S.ESPPlayer=v end})
+    TESP:Toggle({Title="Show Distance", Default=false, Callback=function(v) S.ESPDistance=v end})
+    TESP:Toggle({Title="Health Bars", Default=false, Callback=function(v) S.ESPHealth=v end})
+    TESP:Toggle({Title="Tracers", Default=false, Callback=function(v) S.ESPTracers=v end})
+    TESP:Dropdown({Title="Tracer Origin", Values={"Bottom","Center"}, Value="Bottom", Callback=function(v) S.TracerOrigin=v end})
+
+    local TMove = Window:Tab({Title="Movement", Icon="activity"})
+    TMove:Section({Title="Speed", Opened=true})
+    TMove:Toggle({Title="Speed Hack", Default=false, Callback=function(v) S.SpeedEnabled=v end})
+    TMove:Slider({Title="Walk Speed", Value={Min=16,Max=300,Default=16}, Step=1, Callback=function(v) S.WalkSpeed=v end})
+    TMove:Toggle({Title="Auto Sprint", Default=false, Callback=function(v) S.AutoSprint=v end})
+    TMove:Slider({Title="Sprint Speed", Value={Min=16,Max=100,Default=28}, Step=1, Callback=function(v) S.SprintSpeed=v end})
+    TMove:Section({Title="Air", Opened=true})
+    TMove:Toggle({Title="Fly  [F3 to toggle]", Default=false, Callback=function(v)
+        S.FlyEnabled=v
+        local h=hum(); if h and not v then h.PlatformStand=false end
+    end})
+    TMove:Slider({Title="Fly Speed", Value={Min=1,Max=100,Default=3}, Step=1, Callback=function(v) S.FlySpeed=v end})
+    TMove:Toggle({Title="Infinite Jump", Default=false, Callback=function(v) S.InfiniteJump=v end})
+    TMove:Toggle({Title="High Jump", Default=false, Callback=function(v) S.HighJump=v end})
+    TMove:Slider({Title="Jump Power", Value={Min=50,Max=500,Default=120}, Step=10, Callback=function(v) S.JumpPower=v end})
+    TMove:Section({Title="Physics", Opened=true})
+    TMove:Toggle({Title="Low Gravity", Default=false, Callback=function(v) S.LowGravity=v end})
+    TMove:Slider({Title="Gravity Value", Value={Min=5,Max=196,Default=50}, Step=5, Callback=function(v) S.GravityVal=v end})
+    TMove:Toggle({Title="Noclip  [F4 to toggle]", Default=false, Callback=function(v) S.NoclipEnabled=v end})
+    TMove:Toggle({Title="Anti Slip", Default=false, Callback=function(v) S.AntiSlip=v end})
+    TMove:Toggle({Title="Anti Void", Default=false, Callback=function(v) S.AntiVoid=v end})
+    TMove:Slider({Title="Void Y Threshold", Value={Min=-500,Max=0,Default=-100}, Step=10, Callback=function(v) S.AntiVoidY=v end})
+
+    local TPlayers = Window:Tab({Title="Players", Icon="users"})
+    local function playerNames()
+        local t={}
+        for _,p in ipairs(Players:GetPlayers()) do if p~=LP then table.insert(t,p.Name) end end
+        return #t>0 and t or {"None"}
     end
-    return #t > 0 and t or { "None" }
-end
-TPlayers:Dropdown({ Title = "Target Player", Values = playerNames(), Callback = function(v) S.TargetPlayer = v end })
-TPlayers:Button({ Title = "Teleport To Player", Callback = function()
-    local tp = Players:FindFirstChild(S.TargetPlayer)
-    if tp and tp.Character then
-        local tr = tp.Character:FindFirstChild("HumanoidRootPart")
-        if tr then tpTo(tr.Position, Vector3.new(0, 4, 0)) end
-    end
-end })
-TPlayers:Button({ Title = "Bring Player To Me", Callback = function()
-    local tp = Players:FindFirstChild(S.TargetPlayer)
-    if tp and tp.Character then
-        local tr = tp.Character:FindFirstChild("HumanoidRootPart")
-        local r = root()
-        if tr and r then tr.CFrame = r.CFrame + Vector3.new(3, 0, 0) end
-    end
-end })
-TPlayers:Toggle({ Title = "Orbit Player", Default = false, Callback = function(v) S.OrbitEnabled = v end })
-TPlayers:Slider({ Title = "Orbit Radius", Value = { Min = 3, Max = 50, Default = 10 }, Step = 1, Callback = function(v) S.OrbitRadius = v end })
-TPlayers:Slider({ Title = "Orbit Speed", Value = { Min = 0.1, Max = 5, Default = 1 }, Step = 0.1, Callback = function(v) S.OrbitSpeed = v end })
-TPlayers:Button({ Title = "Fling Player", Callback = function()
-    local tp = Players:FindFirstChild(S.TargetPlayer)
-    if tp and tp.Character then
-        local tr = tp.Character:FindFirstChild("HumanoidRootPart")
-        local r = root()
-        if tr and r then
-            r.CFrame = tr.CFrame
-            tr.Velocity = Vector3.new(math.random(-500,500), 1000, math.random(-500,500))
+    TPlayers:Dropdown({Title="Target Player", Values=playerNames(), Callback=function(v) S.TargetPlayer=v end})
+    TPlayers:Button({Title="Teleport To Player", Callback=function()
+        local tp=Players:FindFirstChild(S.TargetPlayer)
+        if tp and tp.Character then
+            local tr=tp.Character:FindFirstChild("HumanoidRootPart")
+            if tr then tpTo(tr.Position) end
         end
-    end
-end })
-TPlayers:Button({ Title = "Print All Players", Callback = function()
-    for _, p in ipairs(Players:GetPlayers()) do
-        print(p.Name .. " | " .. p.UserId)
-    end
-end })
-
--- ─── TAB: TELEPORT ────────────────────────────────────
-local TTP = Window:Tab({ Title = "Teleport", Icon = "map-pin" })
-TTP:Input({ Title = "Part / Object Name", Value = "", Callback = function(v) S.TPTarget = v end })
-TTP:Button({ Title = "Teleport To Object", Callback = function()
-    if S.TPTarget and S.TPTarget ~= "" then
-        local obj = WS:FindFirstChild(S.TPTarget, true)
-        if obj then
-            local pos = obj:IsA("BasePart") and obj.Position
-                or (obj:IsA("Model") and obj.PrimaryPart and obj.PrimaryPart.Position)
-            if pos then tpTo(pos) end
+    end})
+    TPlayers:Button({Title="Bring Player To Me", Callback=function()
+        local tp=Players:FindFirstChild(S.TargetPlayer)
+        if tp and tp.Character then
+            local tr=tp.Character:FindFirstChild("HumanoidRootPart")
+            local r=root()
+            if tr and r then tr.CFrame=r.CFrame+Vector3.new(3,0,0) end
         end
-    end
-end })
-TTP:Button({ Title = "Teleport To Spawn", Callback = function()
-    local sp = WS:FindFirstChildOfClass("SpawnLocation")
-    if sp then tpTo(sp.Position) end
-end })
-TTP:Button({ Title = "Teleport To Origin  (0,100,0)", Callback = function()
-    local r = root()
-    if r then r.CFrame = CFrame.new(0, 100, 0) end
-end })
-TTP:Toggle({ Title = "Loop TP To Object", Default = false, Callback = function(v) S.LoopTP = v end })
-TTP:Input({ Title = "Loop TP Target Name", Value = "", Callback = function(v) S.LoopTPName = v end })
-task.spawn(function()
-    while true do
-        task.wait(2)
-        if S.LoopTP and S.LoopTPName and S.LoopTPName ~= "" then
-            local obj = WS:FindFirstChild(S.LoopTPName, true)
+    end})
+    TPlayers:Toggle({Title="Orbit Player", Default=false, Callback=function(v) S.OrbitEnabled=v end})
+    TPlayers:Slider({Title="Orbit Radius", Value={Min=3,Max=50,Default=10}, Step=1, Callback=function(v) S.OrbitRadius=v end})
+    TPlayers:Slider({Title="Orbit Speed", Value={Min=0.1,Max=5,Default=1}, Step=0.1, Callback=function(v) S.OrbitSpeed=v end})
+    TPlayers:Button({Title="Fling Player", Callback=function()
+        local tp=Players:FindFirstChild(S.TargetPlayer)
+        if tp and tp.Character then
+            local tr=tp.Character:FindFirstChild("HumanoidRootPart")
+            local r=root()
+            if tr and r then
+                r.CFrame=tr.CFrame
+                tr.Velocity=Vector3.new(math.random(-500,500),1000,math.random(-500,500))
+            end
+        end
+    end})
+    TPlayers:Button({Title="Print All Players", Callback=function()
+        for _,p in ipairs(Players:GetPlayers()) do print(p.Name.." | "..p.UserId) end
+    end})
+
+    local TTP = Window:Tab({Title="Teleport", Icon="map-pin"})
+    TTP:Input({Title="Object / Part Name", Value="", Callback=function(v) S.TPTarget=v end})
+    TTP:Button({Title="Teleport To Object", Callback=function()
+        if S.TPTarget~="" then
+            local obj=WS:FindFirstChild(S.TPTarget,true)
             if obj then
-                local pos = obj:IsA("BasePart") and obj.Position
+                local pos=obj:IsA("BasePart") and obj.Position
                     or (obj:IsA("Model") and obj.PrimaryPart and obj.PrimaryPart.Position)
                 if pos then tpTo(pos) end
             end
         end
+    end})
+    TTP:Button({Title="Teleport To Spawn", Callback=function()
+        local sp=WS:FindFirstChildOfClass("SpawnLocation")
+        if sp then tpTo(sp.Position) end
+    end})
+    TTP:Button({Title="Teleport To Origin (0,100,0)", Callback=function()
+        local r=root(); if r then r.CFrame=CFrame.new(0,100,0) end
+    end})
+    TTP:Toggle({Title="Loop TP To Object", Default=false, Callback=function(v) S.LoopTP=v end})
+    TTP:Input({Title="Loop TP Target Name", Value="", Callback=function(v) S.LoopTPName=v end})
+    TTP:Button({Title="Click TP (click anywhere)", Callback=function()
+        local conn
+        conn = UIS.InputBegan:Connect(function(input, gp)
+            if gp then return end
+            if input.UserInputType == Enum.UserInputType.MouseButton1 then
+                conn:Disconnect()
+                local r=root()
+                if Mouse.Hit and r then r.CFrame=CFrame.new(Mouse.Hit.Position+Vector3.new(0,5,0)) end
+            end
+        end)
+        WindUI:Notify({Title="Click TP", Content="Click anywhere to teleport.", Duration=3})
+    end})
+
+    local TMisc = Window:Tab({Title="Misc", Icon="settings"})
+    TMisc:Toggle({Title="Pause All  [F2]", Default=false, Callback=function(v) S.Paused=v end})
+    TMisc:Toggle({Title="Anti-AFK", Default=true, Callback=function(v) S.AntiAFK=v end})
+    TMisc:Toggle({Title="Fullbright", Default=false, Callback=function(v) S.Fullbright=v end})
+    TMisc:Section({Title="Chat", Opened=true})
+    TMisc:Toggle({Title="Chat Spammer", Default=false, Callback=function(v) S.ChatSpam=v end})
+    TMisc:Input({Title="Chat Message", Value="discord.gg/ZN4jtyPNHG", Callback=function(v) S.ChatMsg=v end})
+    TMisc:Slider({Title="Spam Delay (sec)", Value={Min=3,Max=60,Default=10}, Step=1, Callback=function(v) S.ChatDelay=v end})
+    TMisc:Section({Title="Server", Opened=true})
+    TMisc:Toggle({Title="Server Hop", Default=false, Callback=function(v) S.ServerHop=v end})
+    TMisc:Slider({Title="Hop If Players ≤", Value={Min=1,Max=20,Default=5}, Step=1, Callback=function(v) S.ServerHopMin=v end})
+    TMisc:Button({Title="Rejoin", Callback=function()
+        pcall(function() game:GetService("TeleportService"):Teleport(game.PlaceId,LP) end)
+    end})
+    TMisc:Button({Title="Print Remotes to Console", Callback=function()
+        for _,v in ipairs(RS:GetDescendants()) do
+            if v:IsA("RemoteEvent") or v:IsA("RemoteFunction") then print(v.ClassName.."  "..v:GetFullName()) end
+        end
+    end})
+    TMisc:Button({Title="Reset Character", Callback=function()
+        local h=hum(); if h then h.Health=0 end
+    end})
+
+    local TInfo = Window:Tab({Title="Info", Icon="bar-chart-2"})
+    TInfo:Toggle({Title="Info Panel", Default=false, Callback=function(v) S.InfoPanel=v end})
+    TInfo:Toggle({Title="Show FPS", Default=false, Callback=function(v) S.ShowFPS=v end})
+    TInfo:Toggle({Title="Show Ping", Default=false, Callback=function(v) S.ShowPing=v end})
+    TInfo:Toggle({Title="Show Cash", Default=false, Callback=function(v) S.ShowCash=v end})
+    TInfo:Toggle({Title="Show Clock", Default=false, Callback=function(v) S.ShowClock=v end})
+    TInfo:Button({Title="Print Server Info", Callback=function()
+        print("JobId: "..game.JobId)
+        print("PlaceId: "..game.PlaceId)
+        print("Players: "..#Players:GetPlayers())
+        print("Cash: "..cash())
+        local r=root(); if r then print("Pos: "..tostring(r.Position)) end
+    end})
+
+    local minSG = Instance.new("ScreenGui")
+    minSG.Name = "RivoMinimize"
+    minSG.ResetOnSpawn = false
+    minSG.Parent = game:GetService("CoreGui")
+    local minBtn = Instance.new("TextButton", minSG)
+    minBtn.Size = UDim2.new(0,56,0,56)
+    minBtn.Position = UDim2.new(0.5,-28,0,10)
+    minBtn.BackgroundColor3 = Color3.fromRGB(15,25,55)
+    minBtn.Text = "R"
+    minBtn.TextColor3 = Color3.fromRGB(255,255,255)
+    minBtn.Font = Enum.Font.GothamBold
+    minBtn.TextSize = 20
+    minBtn.Visible = false
+    Instance.new("UICorner", minBtn).CornerRadius = UDim.new(0,14)
+    local mStroke = Instance.new("UIStroke", minBtn)
+    mStroke.Color = Color3.fromRGB(60,130,255); mStroke.Thickness = 2
+
+    local windSG = nil
+    local minimized = false
+    local function findWindSG()
+        for _,g in ipairs(game:GetService("CoreGui"):GetChildren()) do
+            if g:IsA("ScreenGui") and g.Name:lower():find("wind") then return g end
+        end
     end
-end)
-TTP:Button({ Title = "Click TP  (click anywhere to TP)", Callback = function()
-    local conn
-    conn = UIS.InputBegan:Connect(function(input, gp)
-        if gp then return end
-        if input.UserInputType == Enum.UserInputType.MouseButton1 then
-            conn:Disconnect()
-            local mouse = LP:GetMouse()
-            local r = root()
-            if mouse.Hit and r then
-                r.CFrame = CFrame.new(mouse.Hit.Position + Vector3.new(0, 5, 0))
+    local function minimize()
+        if minimized then return end
+        minimized = true
+        windSG = windSG or findWindSG()
+        if windSG then windSG.Enabled=false end
+        minBtn.Visible = true
+    end
+    local function restore()
+        if not minimized then return end
+        minimized = false
+        windSG = windSG or findWindSG()
+        if windSG then windSG.Enabled=true end
+        minBtn.Visible = false
+    end
+    minBtn.MouseButton1Click:Connect(restore)
+    task.spawn(function()
+        task.wait(1.5)
+        windSG = findWindSG()
+        if windSG then
+            for _,d in ipairs(windSG:GetDescendants()) do
+                if d:IsA("TextButton") and (d.Text=="—" or d.Text=="-" or d.Text=="✕" or d.Text=="X") then
+                    d.MouseButton1Click:Connect(function() task.wait(0.05); minimize() end)
+                end
             end
         end
     end)
-    WindUI:Notify({ Title = "Click TP", Content = "Click anywhere to teleport.", Duration = 3 })
-end })
-
--- ─── TAB: MISC ────────────────────────────────────────
-local TMisc = Window:Tab({ Title = "Misc", Icon = "settings" })
-TMisc:Toggle({ Title = "Pause All  [F2]", Default = false, Callback = function(v) S.Paused = v end })
-TMisc:Toggle({ Title = "Anti-AFK", Default = true, Callback = function(v) S.AntiAFK = v end })
-TMisc:Toggle({ Title = "Fullbright", Default = false, Callback = function(v) S.Fullbright = v end })
-TMisc:Section({ Title = "Chat", Opened = true })
-TMisc:Toggle({ Title = "Chat Spammer", Default = false, Callback = function(v) S.ChatSpam = v end })
-TMisc:Input({ Title = "Chat Message", Value = "discord.gg/ZN4jtyPNHG", Callback = function(v) S.ChatMsg = v end })
-TMisc:Slider({ Title = "Spam Delay (sec)", Value = { Min = 3, Max = 60, Default = 10 }, Step = 1, Callback = function(v) S.ChatDelay = v end })
-TMisc:Section({ Title = "Server", Opened = true })
-TMisc:Toggle({ Title = "Server Hop", Default = false, Callback = function(v) S.ServerHop = v end })
-TMisc:Slider({ Title = "Hop If Players ≤", Value = { Min = 1, Max = 20, Default = 5 }, Step = 1, Callback = function(v) S.ServerHopMin = v end })
-TMisc:Button({ Title = "Rejoin", Callback = function()
-    pcall(function() game:GetService("TeleportService"):Teleport(game.PlaceId, LP) end)
-end })
-TMisc:Button({ Title = "Print Remotes", Callback = function()
-    for _, v in ipairs(RS:GetDescendants()) do
-        if v:IsA("RemoteEvent") or v:IsA("RemoteFunction") then
-            print(v.ClassName .. "  " .. v:GetFullName())
+    UIS.InputBegan:Connect(function(input, gp)
+        if gp then return end
+        if input.KeyCode == Enum.KeyCode.RightBracket then
+            if minimized then restore() else minimize() end
         end
-    end
-end })
-TMisc:Button({ Title = "Reset Character", Callback = function()
-    local h = hum()
-    if h then h.Health = 0 end
-end })
+    end)
 
--- ─── TAB: INFO ────────────────────────────────────────
-local TInfo = Window:Tab({ Title = "Info", Icon = "bar-chart-2" })
-TInfo:Toggle({ Title = "Info Panel (top right)", Default = false, Callback = function(v) S.InfoPanel = v end })
-TInfo:Toggle({ Title = "Show FPS", Default = false, Callback = function(v) S.ShowFPS = v end })
-TInfo:Toggle({ Title = "Show Ping", Default = false, Callback = function(v) S.ShowPing = v end })
-TInfo:Toggle({ Title = "Show Cash", Default = false, Callback = function(v) S.ShowCash = v end })
-TInfo:Toggle({ Title = "Show Clock", Default = false, Callback = function(v) S.ShowClock = v end })
-TInfo:Button({ Title = "Print Server Info", Callback = function()
-    print("JobId: " .. game.JobId)
-    print("PlaceId: " .. game.PlaceId)
-    print("Players: " .. #Players:GetPlayers())
-    print("Cash: " .. cash())
-    local r = root()
-    if r then print("Position: " .. tostring(r.Position)) end
-end })
-
--- ─── MINIMIZE ─────────────────────────────────────────
-local minSG = Instance.new("ScreenGui")
-minSG.Name = "RivoMinimize"
-minSG.ResetOnSpawn = false
-minSG.Parent = game:GetService("CoreGui")
-
-local minBtn = Instance.new("TextButton", minSG)
-minBtn.Size = UDim2.new(0, 56, 0, 56)
-minBtn.Position = UDim2.new(0.5, -28, 0, 10)
-minBtn.BackgroundColor3 = Color3.fromRGB(15, 25, 55)
-minBtn.Text = "R"
-minBtn.TextColor3 = Color3.fromRGB(255, 255, 255)
-minBtn.Font = Enum.Font.GothamBold
-minBtn.TextSize = 20
-minBtn.Visible = false
-Instance.new("UICorner", minBtn).CornerRadius = UDim.new(0, 14)
-local mStroke = Instance.new("UIStroke", minBtn)
-mStroke.Color = Color3.fromRGB(60, 130, 255)
-mStroke.Thickness = 2
-
-local windSG = nil
-local minimized = false
-
-local function findWindSG()
-    for _, g in ipairs(game:GetService("CoreGui"):GetChildren()) do
-        if g:IsA("ScreenGui") and g.Name:lower():find("wind") then return g end
-    end
+    WindUI:Notify({
+        Title = "Rivo Hub Unlocked",
+        Content = "F2=pause | F3=fly | F4=noclip | ]=minimize\ndiscord.gg/ZN4jtyPNHG",
+        Duration = 8
+    })
 end
 
-local function minimize()
-    if minimized then return end
-    minimized = true
-    windSG = windSG or findWindSG()
-    if windSG then windSG.Enabled = false end
-    minBtn.Visible = true
-end
-
-local function restore()
-    if not minimized then return end
-    minimized = false
-    windSG = windSG or findWindSG()
-    if windSG then windSG.Enabled = true end
-    minBtn.Visible = false
-end
-
-minBtn.MouseButton1Click:Connect(restore)
-
-task.spawn(function()
-    task.wait(1.5)
-    windSG = findWindSG()
-    if windSG then
-        for _, d in ipairs(windSG:GetDescendants()) do
-            if d:IsA("TextButton") and (d.Text == "—" or d.Text == "-" or d.Text == "✕" or d.Text == "X") then
-                d.MouseButton1Click:Connect(function() task.wait(0.05) minimize() end)
-            end
-        end
+kBtn.MouseButton1Click:Connect(function()
+    local entered = kInput.Text:gsub("%s","")
+    if entered == VALID_KEY then
+        kStatus.TextColor3 = Color3.fromRGB(50,220,50)
+        kStatus.Text = "✅  Key accepted! Loading..."
+        task.wait(0.8)
+        launchHub()
+    else
+        kStatus.TextColor3 = Color3.fromRGB(255,80,80)
+        kStatus.Text = "❌  Invalid key. Get it on our Discord."
+        TS:Create(keyBox, TweenInfo.new(0.05, Enum.EasingStyle.Sine, Enum.EasingDirection.InOut, 4, true), {Position=keyBox.Position+UDim2.new(0,6,0,0)}):Play()
     end
 end)
 
-UIS.InputBegan:Connect(function(input, gp)
-    if gp then return end
-    if input.KeyCode == Enum.KeyCode.RightBracket then
-        if minimized then restore() else minimize() end
-    end
+kInput.FocusLost:Connect(function(enterPressed)
+    if enterPressed then kBtn.MouseButton1Click:Fire() end
 end)
-
--- ─── NOTIFY ───────────────────────────────────────────
-WindUI:Notify({
-    Title = "Rivo Hub Loaded",
-    Content = "F2 = pause  |  F3 = fly  |  F4 = noclip  |  ] = minimize\ndiscord.gg/ZN4jtyPNHG",
-    Duration = 8
-})
